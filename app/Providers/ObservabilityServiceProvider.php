@@ -6,8 +6,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use OpenTelemetry\API\Common\Time\Clock;
+use OpenTelemetry\API\Trace\NoopTracer;
 use OpenTelemetry\API\Trace\TracerInterface;
-use OpenTelemetry\Contrib\Grpc\GrpcTransportFactory;
+use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
 use OpenTelemetry\Contrib\Otlp\SpanExporter;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
@@ -85,7 +86,6 @@ class ObservabilityServiceProvider extends ServiceProvider
             'DB_HOST',
             'DB_DATABASE',
             'DB_USERNAME',
-            'DB_PASSWORD',
             'OTEL_EXPORTER_OTLP_ENDPOINT',
         ];
 
@@ -128,12 +128,12 @@ class ObservabilityServiceProvider extends ServiceProvider
 
         try {
             $endpoint = config('observability.otel.endpoint', 'http://tempo:4317');
-            // Strip http:// or https:// prefix — gRPC transport expects host:port
-            $grpcEndpoint = preg_replace('#^https?://#', '', $endpoint);
+            // Use HTTP/protobuf transport — switch to port 4318 (OTLP HTTP)
+            $httpEndpoint = preg_replace('/:4317$/', ':4318', $endpoint);
 
-            // Build the gRPC transport pointing at the OTLP endpoint
-            $transport = (new GrpcTransportFactory)->create(
-                'http://'.$grpcEndpoint.'/opentelemetry.proto.collector.trace.v1.TraceService/Export'
+            $transport = (new OtlpHttpTransportFactory)->create(
+                $httpEndpoint.'/v1/traces',
+                'application/x-protobuf'
             );
 
             $exporter = new SpanExporter($transport);
@@ -252,12 +252,30 @@ class ObservabilityServiceProvider extends ServiceProvider
             []
         );
 
-        $registry->getOrRegisterCounter(
+        $dbQueriesCounter = $registry->getOrRegisterCounter(
             $namespace,
             'app_db_queries_total',
             'Total number of database queries executed',
             ['query_type']
         );
+
+        // ── Force-initialize all counters to 0 so they appear in /metrics output
+        // even before any traffic. prometheus/client_php only emits metrics that
+        // have been touched at least once.
+        foreach (['select', 'insert', 'update', 'delete', 'other'] as $qt) {
+            try {
+                $dbQueriesCounter->incBy(0, [$qt]);
+            } catch (\Throwable) {
+            }
+        }
+
+        try {
+            $registry->getOrRegisterCounter($namespace, 'app_user_registrations_total', '', [])->incBy(0, []);
+            $registry->getOrRegisterCounter($namespace, 'app_user_logins_total', '', [])->incBy(0, []);
+            $registry->getOrRegisterCounter($namespace, 'app_orders_created_total', '', [])->incBy(0, []);
+            $registry->getOrRegisterCounter($namespace, 'app_product_requests_total', '', ['operation', 'status'])->incBy(0, ['list', '200']);
+        } catch (\Throwable) {
+        }
     }
 
     /**

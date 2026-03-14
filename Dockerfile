@@ -23,7 +23,8 @@ RUN apt-get update \
 
 
 RUN pecl install protobuf apcu xdebug \
-    && docker-php-ext-enable protobuf apcu xdebug
+    && docker-php-ext-enable protobuf apcu xdebug \
+    && echo "apc.enabled=1\napc.shm_size=64M\napc.enable_cli=1" >> /usr/local/etc/php/conf.d/docker-php-ext-apcu.ini
 
 
 # Install Composer from official image

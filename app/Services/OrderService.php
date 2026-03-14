@@ -109,7 +109,7 @@ class OrderService
 
             $this->registry->getOrRegisterCounter(
                 $namespace,
-                'orders_created_total',
+                'app_orders_created_total',
                 'Total number of orders created',
                 []
             )->inc();

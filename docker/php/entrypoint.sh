@@ -7,6 +7,5 @@ if [ -z "$APP_KEY" ]; then
 fi
 
 php artisan migrate --force
-php artisan config:cache
 
 exec php-fpm

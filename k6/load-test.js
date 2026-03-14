@@ -58,6 +58,8 @@ export function setup() {
     { headers }
   );
 
+  console.log(`setup: register status=${regRes.status} body=${regRes.body.substring(0, 200)}`);
+
   let token = null;
 
   if (regRes.status === 201) {
@@ -66,18 +68,20 @@ export function setup() {
 
   // Fall back to login if register didn't return a token
   if (!token) {
+    console.log(`setup: register failed or no token, trying login...`);
     const loginRes = http.post(
       `${BASE_URL}/api/v1/login`,
       JSON.stringify({ email, password }),
       { headers }
     );
+    console.log(`setup: login status=${loginRes.status} body=${loginRes.body.substring(0, 200)}`);
     if (loginRes.status === 200) {
       token = JSON.parse(loginRes.body)?.token ?? null;
     }
   }
 
   if (!token) {
-    console.error('setup: could not obtain auth token — aborting');
+    console.error(`setup: could not obtain auth token — aborting. BASE_URL=${BASE_URL}`);
     return { token: null, productIds: [] };
   }
 
