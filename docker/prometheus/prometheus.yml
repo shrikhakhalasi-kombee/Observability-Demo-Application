@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: laravel-app
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - nginx:80
+    metrics_path: /metrics

@@ -1,0 +1,11 @@
+# Node
+node_modules
+npm-debug.log
+yarn-error
+
+# Laravel cache & compiled files
+bootstrap/cache/*.php
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
