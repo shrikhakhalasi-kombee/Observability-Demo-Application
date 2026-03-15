@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Prometheus\CollectorRegistry;
 
 class AuthController extends Controller
 {
@@ -25,7 +26,14 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended(route('products.index'));
+            try {
+                $registry = app(CollectorRegistry::class);
+                $ns = config('observability.metrics.namespace', '');
+                $registry->getOrRegisterCounter($ns, 'app_user_logins_total', 'Total number of successful user logins', [])->inc([]);
+            } catch (\Throwable) {
+            }
+
+            return redirect()->intended(route('web.products'));
         }
 
         return back()->withErrors(['email' => 'Invalid credentials.'])->onlyInput('email');
@@ -53,7 +61,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('products.index');
+        return redirect()->route('web.products');
     }
 
     public function logout(Request $request)
