@@ -1,6 +1,52 @@
 # Laravel Observability Demo
 
-A Laravel 12 REST API instrumented with Prometheus metrics, structured JSON logs (Loki), and distributed traces (Tempo) — all visualised in Grafana. Two injectable anomalies let you demonstrate live degradation detection.
+A Laravel 12 application with a Livewire frontend, instrumented with Prometheus metrics, structured JSON logs (Loki), and distributed traces (Tempo) — all visualised in Grafana. Two injectable anomalies let you demonstrate live degradation detection.
+
+---
+
+## Repository Structure
+
+```
+.
+├── app/                        # Laravel application code
+│   ├── Http/
+│   │   ├── Controllers/        # API + Web controllers (AuthController, OrderController, ProductController)
+│   │   ├── Middleware/         # TraceMiddleware, MetricsMiddleware, RequestLogMiddleware, AnomalyDelayMiddleware
+│   │   └── Resources/          # JSON API resources
+│   ├── Livewire/               # Livewire components (ProductManager, OrderManager, DashboardStats)
+│   ├── Models/                 # Eloquent models (User, Product, Order, OrderItem)
+│   ├── Providers/
+│   │   └── ObservabilityServiceProvider.php  # Registers OTel tracer, Prometheus metrics, DB listener
+│   └── Services/               # OrderService, ProductService (business logic + metric recording)
+├── bootstrap/
+│   └── app.php                 # Middleware groups — web + api both get Trace/Metrics/Log middleware
+├── config/
+│   └── observability.php       # Centralised observability config (namespace, OTLP endpoint, anomaly flags)
+├── docker/
+│   ├── grafana/
+│   │   ├── dashboards/         # Pre-built dashboard JSON exports (4 dashboards)
+│   │   └── provisioning/       # Auto-provisioned datasources + dashboard loader
+│   ├── loki/                   # Loki config (stream limits, retention)
+│   ├── nginx/                  # Nginx reverse proxy config
+│   ├── php/                    # PHP-FPM entrypoint script
+│   ├── prometheus/             # Prometheus scrape config
+│   ├── promtail/               # Promtail log shipping config
+│   └── tempo/                  # Tempo trace storage config
+├── k6/
+│   └── load-test.js            # k6 load test — 100 VUs, 5000 iterations, custom metrics
+├── database/
+│   ├── migrations/             # Schema for users, products, orders, order_items
+│   └── seeders/                # DemoSeeder — 50 products, 200 orders, demo users
+├── resources/views/            # Blade + Livewire templates
+├── routes/
+│   ├── api.php                 # REST API routes under /api/v1
+│   └── web.php                 # Web UI routes (Livewire pages)
+├── docker-compose.yml          # Full 10-service stack definition
+├── Dockerfile                  # PHP 8.3-FPM image with OTel + APCu extensions
+├── .env.example                # Environment variable template
+├── DEMO_WALKTHROUGH.md         # Step-by-step video recording script
+└── README.md                   # This file
+```
 
 ---
 
@@ -12,7 +58,7 @@ A Laravel 12 REST API instrumented with Prometheus metrics, structured JSON logs
 │                                                             │
 │  ┌──────────┐    ┌──────────┐    ┌──────────────────────┐  │
 │  │  nginx   │───▶│  app     │───▶│  mysql               │  │
-│  │ :80      │    │ php-fpm  │    │  :3306               │  │
+│  │ :8083    │    │ php-fpm  │    │  :3306               │  │
 │  └──────────┘    └────┬─────┘    └──────────────────────┘  │
 │       ▲               │                                     │
 │  HTTP │        metrics│logs│traces                          │
@@ -31,46 +77,56 @@ A Laravel 12 REST API instrumented with Prometheus metrics, structured JSON logs
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- **nginx** — reverse proxy, forwards HTTP to php-fpm, serves `/metrics`
-- **app** — Laravel 12 API with OTel SDK, Prometheus client, structured JSON logging
-- **mysql** — persistent data store
-- **prometheus** — scrapes `/metrics` every 5 s
-- **loki** — receives JSON logs via promtail
-- **tempo** — receives OTLP traces from the app
-- **grafana** — unified dashboard UI connected to all three backends
-- **promtail** — tails Laravel log files and ships to Loki
+| Service        | Role                                                                        |
+| -------------- | --------------------------------------------------------------------------- |
+| **nginx**      | Reverse proxy on port 8083, forwards HTTP to php-fpm                        |
+| **app**        | Laravel 12 + Livewire, OTel SDK, Prometheus client, structured JSON logging |
+| **mysql**      | Persistent data store (port 3310 on host)                                   |
+| **phpmyadmin** | Database browser on port 8081                                               |
+| **prometheus** | Scrapes `/metrics` every 5 s                                                |
+| **loki**       | Receives structured JSON logs from promtail                                 |
+| **tempo**      | Receives OTLP/HTTP traces from the app on port 4318                         |
+| **promtail**   | Tails `storage/logs/laravel.json.log`, ships to Loki                        |
+| **grafana**    | Unified dashboard UI — all four dashboards auto-provisioned                 |
 
 ---
 
 ## Grafana Dashboards
 
-Four pre-provisioned dashboards are available at http://localhost:3000 (admin/admin):
+Four pre-provisioned dashboards at http://localhost:3000 (admin / admin):
 
-| Dashboard                      | Datasource | What it shows                                                                                                        |
-| ------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Laravel Application Health** | Prometheus | RPS, error rate %, P50/P95/P99 latency, active requests, total orders/registrations, slowest endpoints, active users |
-| **Database Performance**       | Prometheus | Query duration histogram, slow query rate, connection pool usage                                                     |
-| **Logs Explorer**              | Loki       | Full log stream with level/trace_id filters, log volume by level, error logs, login failures, validation errors      |
-| **Traces Explorer**            | Tempo      | Trace search waterfall, span hierarchy node graph, span duration distribution, slowest service spans                 |
+| Dashboard                      | Datasource | Panels                                                                                                                                                          |
+| ------------------------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Laravel Application Health** | Prometheus | Requests/min, Error Rate %, P50/P95/P99 Latency, Active Requests gauge, Total Registrations, Orders/min, Slowest Endpoints table, Active Users (logins last 5m) |
+| **Database Performance**       | Prometheus | Query Rate by Type, P95 Query Duration, Slow Query Rate, DB Connections over time                                                                               |
+| **Logs Explorer**              | Loki       | Log volume by level, full log stream (filterable by level + trace_id), Error & Warning log panel                                                                |
+| **Traces Explorer**            | Tempo      | Trace search table (service, name, duration, trace ID), Slowest Spans table                                                                                     |
 
 ---
 
-## Observability
-
-This project demonstrates the three pillars of observability:
+## Observability Implementation
 
 ### Metrics (Prometheus)
 
-The app exposes a `/metrics` endpoint scraped by Prometheus every 5 seconds. Key metrics:
+`MetricsMiddleware` records `http_request_duration_seconds` (histogram) on every request. `ObservabilityServiceProvider` registers all counters and gauges at boot. `OrderService` increments `app_orders_created_total` after each successful order. A DB listener records `app_db_query_duration_seconds` and `app_db_queries_total` for every query.
 
-- `http_request_duration_seconds` — histogram of request latency labelled by route and status code
-- `app_orders_created_total` — counter incremented on every successful order
-- `app_user_logins_total` / `app_user_registrations_total` — auth event counters
-- `app_active_requests` — gauge tracking in-flight requests
+Key metrics:
+
+| Metric                          | Type      | Description                                   |
+| ------------------------------- | --------- | --------------------------------------------- |
+| `http_request_duration_seconds` | Histogram | Request latency by method, route, status_code |
+| `app_orders_created_total`      | Counter   | Successful order creations                    |
+| `app_user_registrations_total`  | Counter   | Successful user registrations                 |
+| `app_active_requests`           | Gauge     | In-flight requests                            |
+| `app_db_query_duration_seconds` | Histogram | DB query latency by type                      |
+| `app_db_queries_total`          | Counter   | DB query count by type                        |
+| `app_order_value_dollars`       | Histogram | Order value distribution                      |
+
+> **Active Users panel** uses `http_request_duration_seconds_count{method="post",route="login",status_code="302"}` — a 302 on POST /login is a successful web login. This is recorded by `MetricsMiddleware` in every PHP-FPM worker, making it reliable across all worker processes.
 
 ### Logs (Loki)
 
-Every request emits a structured JSON log line via `RequestLogMiddleware`:
+`RequestLogMiddleware` emits a structured JSON line per request:
 
 ```json
 {
@@ -84,124 +140,133 @@ Every request emits a structured JSON log line via `RequestLogMiddleware`:
 }
 ```
 
-Promtail tails `storage/logs/laravel.json.log` and ships entries to Loki with the `app="laravel-observability-demo"` label.
+Promtail ships `storage/logs/laravel.json.log` to Loki with label `app="laravel-observability-demo"`. The `trace_id` field is a Grafana derived field — clicking it opens the corresponding Tempo trace.
 
 ### Traces (Tempo)
 
-The app uses the OpenTelemetry PHP SDK to emit OTLP traces. Each order creation produces four nested spans:
+`TraceMiddleware` starts an OpenTelemetry root span per request using `SimpleSpanProcessor` (required for PHP-FPM — `BatchSpanProcessor` never flushes in a synchronous request lifecycle). Traces are exported via OTLP/HTTP to Tempo on port 4318.
 
-1. `order.controller` — full HTTP handler duration
-2. `order.business_logic` — service layer including metrics recording
-3. `order.database_query` — DB transaction (stock check, order insert)
-4. `order.response_formatting` — JSON resource serialisation
+Each order creation produces four nested spans:
 
-The `trace_id` is injected into every log entry, enabling one-click navigation from a Loki log line to the corresponding Tempo trace.
+```
+order.controller          (full HTTP handler)
+  └── order.business_logic
+        └── order.database_query    (MySQL transaction — stock lock, insert)
+              order.response_formatting
+```
+
+Span attributes include `db.item_count`, `order.total_price`, and anomaly markers when active.
 
 ---
 
 ## Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) ≥ 4.x
-- [k6](https://k6.io/docs/get-started/installation/) (load testing)
+- [k6](https://k6.io/docs/get-started/installation/) for load testing
 
 ---
 
 ## Quick Start
 
 ```bash
-# 1. Start the full stack
+# 1. Clone and configure
+cp .env.example .env
+
+# 2. Start the full stack
 docker compose up -d
 
-# 2. Wait for all health checks to pass (~60 s)
+# 3. Wait for health checks (~60 s)
 docker compose ps   # all services should show "healthy"
 
-# 3. Seed demo data
-docker compose exec app php artisan db:seed
+# 4. Seed demo data (50 products, 200 orders, demo users)
+docker compose exec app php artisan db:seed --class=DemoSeeder
 ```
 
 ### Service URLs
 
-| Service    | URL                   | Credentials |
-| ---------- | --------------------- | ----------- |
-| App (API)  | http://localhost:8080 | —           |
-| Grafana    | http://localhost:3000 | admin/admin |
-| Prometheus | http://localhost:9090 | —           |
-| Loki       | http://localhost:3100 | —           |
-| Tempo      | http://localhost:3200 | —           |
+| Service    | URL                   | Credentials       |
+| ---------- | --------------------- | ----------------- |
+| Web UI     | http://localhost:8083 | register or login |
+| phpMyAdmin | http://localhost:8081 | auto-login (root) |
+| Grafana    | http://localhost:3000 | admin / admin     |
+| Prometheus | http://localhost:9090 | —                 |
+| Loki       | http://localhost:3100 | —                 |
+| Tempo      | http://localhost:3200 | —                 |
 
 ---
 
-## Demo Script
-
-### 1. Baseline metrics
-
-Open Grafana → **Application Overview** dashboard. You should see non-zero RPS, latency, and order/registration counters from the seeded data.
-
-### 2. Generate load
+## Running the Load Test
 
 ```bash
 k6 run k6/load-test.js
 ```
 
-Watch the **Application Overview** dashboard update live — RPS climbs to ~20, P50/P95/P99 latency panels populate, and order/registration counters increment.
+The script registers a user, seeds 10 products, then runs 100 VUs for 5000 iterations hitting `GET /api/v1/products` and `POST /api/v1/orders`. Expected results: 0% error rate, P95 < 500ms for GET, P95 < 2s for POST.
 
-### 3. Inject latency anomaly
+---
 
-In a second terminal, enable the delay while k6 is still running:
+## Anomaly Injection
+
+Two anomalies can be toggled at runtime without restarting the container:
+
+### Latency anomaly — simulates slow downstream dependency
 
 ```bash
+# Enable
 docker compose exec app sh -c "echo ANOMALY_DELAY_ENABLED=true >> .env && php artisan config:clear"
+
+# Disable
+docker compose exec app sh -c "sed -i '/ANOMALY_/d' .env && php artisan config:clear"
 ```
 
-Within ~30 s the **P99 latency** panel in Application Overview spikes visibly. The Tempo trace for any product request will show an `anomaly.delay_ms=2000` attribute on the root span.
+Effect: random 1–3 s sleep injected before every POST /orders response. P99 latency spikes within 30 s on the Application Health dashboard.
 
-### 4. Inject slow query anomaly
+### Slow query anomaly — simulates missing index / bad SQL
 
 ```bash
+# Enable
 docker compose exec app sh -c "echo ANOMALY_SLOW_QUERY_ENABLED=true >> .env && php artisan config:clear"
 ```
 
-Open the **Database Performance** dashboard. The **P95 Query Duration** panel will spike as the full-table scan on `orders` executes on every product list request.
+Effect: full table scan + N+1 per-row fetch on every order creation. P95 Query Duration spikes on the Database Performance dashboard.
 
-### 5. Correlate logs → traces
-
-Open the **Logs Explorer** dashboard. Set the `level` variable to `WARNING`. You'll see entries for both anomalies. Click a `trace_id` value to jump directly to the corresponding Tempo trace.
-
-### 6. Inspect the span waterfall
-
-In Tempo, expand the trace. You'll see:
-
-```
-HTTP root span  (GET /api/v1/products)
-  ├── db.query        (normal product query)
-  └── db.slow_query   (anomaly full-table scan)
-```
-
-The `db.slow_query` span carries the `db.statement` attribute with the executed SQL.
-
-### 7. Restore baseline
+### Restore baseline
 
 ```bash
 docker compose exec app sh -c "sed -i '/ANOMALY_/d' .env && php artisan config:clear"
 ```
 
-Within one Prometheus scrape interval (~15 s) latency and query duration return to baseline.
+### Anomaly reference
 
----
-
-## Anomaly Reference
-
-| Environment Variable         | Default           | Effect                                                                 |
-| ---------------------------- | ----------------- | ---------------------------------------------------------------------- |
-| `ANOMALY_DELAY_ENABLED`      | `false`           | Injects a sleep before the response on product routes                  |
-| `ANOMALY_DELAY_MS`           | `2000`            | Duration of the injected delay in milliseconds                         |
-| `ANOMALY_DELAY_ROUTES`       | `api/v1/products` | Comma-separated route prefixes that receive the delay                  |
-| `ANOMALY_SLOW_QUERY_ENABLED` | `false`           | Executes a non-indexed full-table scan on `orders` during product list |
+| Variable                     | Default | Effect                                    |
+| ---------------------------- | ------- | ----------------------------------------- |
+| `ANOMALY_DELAY_ENABLED`      | `false` | Random sleep before POST /orders response |
+| `ANOMALY_DELAY_MIN_MS`       | `1000`  | Lower bound of delay (ms)                 |
+| `ANOMALY_DELAY_MAX_MS`       | `3000`  | Upper bound of delay (ms)                 |
+| `ANOMALY_SLOW_QUERY_ENABLED` | `false` | Full table scan + N+1 on order creation   |
 
 ---
 
 ## Teardown
 
 ```bash
-docker compose down -v   # removes containers and the mysql_data volume
+docker compose down -v   # removes all containers and the mysql_data volume
 ```
+
+---
+
+## Submission Checklist
+
+- [x] Working Laravel 12 application with Livewire UI
+- [x] Docker Compose stack — 9 services, all health-checked
+- [x] Dockerfile — PHP 8.3-FPM with OTel, APCu, Prometheus extensions
+- [x] Prometheus metrics — 7 custom metrics, `/metrics` endpoint
+- [x] Loki logs — structured JSON, Promtail shipping, level + trace_id labels
+- [x] Tempo traces — OTel PHP SDK, OTLP/HTTP, 4 nested spans per order
+- [x] 4 Grafana dashboards — auto-provisioned JSON exports in `docker/grafana/dashboards/`
+- [x] k6 load test — `k6/load-test.js`, 100 VUs, 5000 iterations, custom metrics
+- [x] 2 injectable anomalies — latency delay + slow query, env-var controlled
+- [x] Cross-signal correlation — trace_id links Loki logs → Tempo traces
+- [x] phpMyAdmin — live database browser for demo
+- [x] Demo walkthrough — `DEMO_WALKTHROUGH.md` with full video recording script
+- [x] Screen recording video — committed at repository root
