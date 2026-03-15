@@ -37,7 +37,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "id": 2,
       "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[1m])) / sum(rate(http_request_duration_seconds_count[1m])) * 100", "legendFormat": "Error Rate", "range": true, "refId": "A" }],
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "(sum(rate(http_request_duration_seconds_count{status_code=~\"5..\"}[1m])) or vector(0)) / sum(rate(http_request_duration_seconds_count[1m])) * 100", "legendFormat": "Error Rate", "range": true, "refId": "A" }],
       "title": "Error Rate (%)",
       "type": "stat"
     },

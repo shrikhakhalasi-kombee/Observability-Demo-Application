@@ -48,11 +48,11 @@
       "targets": [{
         "datasource": { "type": "loki", "uid": "loki" },
         "editorMode": "code",
-        "expr": "{app=\"laravel-observability-demo\"} | json | level = `ERROR`",
+        "expr": "{app=\"laravel-observability-demo\"} | json | level =~ \"ERROR|WARNING\"",
         "queryType": "range",
         "refId": "A"
       }],
-      "title": "Error Logs",
+      "title": "Error & Warning Logs",
       "type": "logs"
     }
   ],
