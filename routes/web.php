@@ -19,8 +19,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 
 // Protected web UI
 Route::middleware('auth')->group(function () {
-    Route::get('/', fn () => redirect()->route('products.index'));
-    Route::get('/products', fn () => view('products.index'))->name('products.index');
-    Route::get('/orders', fn () => view('orders.index'))->name('orders.index');
+    Route::get('/', fn () => redirect()->route('web.products'));
+    Route::get('/products', fn () => view('products.index'))->name('web.products');
+    Route::get('/orders', fn () => view('orders.index'))->name('web.orders');
     Route::get('/dashboard', fn () => view('dashboard'))->name('dashboard');
 });

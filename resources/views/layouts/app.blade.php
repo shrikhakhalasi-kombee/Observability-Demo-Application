@@ -17,12 +17,12 @@
                class="text-sm hover:text-indigo-200 {{ request()->routeIs('dashboard') ? 'underline' : '' }}">
                 Dashboard
             </a>
-            <a href="{{ route('products.index') }}"
-               class="text-sm hover:text-indigo-200 {{ request()->routeIs('products.index') ? 'underline' : '' }}">
+            <a href="{{ route('web.products') }}"
+               class="text-sm hover:text-indigo-200 {{ request()->routeIs('web.products') ? 'underline' : '' }}">
                 Products
             </a>
-            <a href="{{ route('orders.index') }}"
-               class="text-sm hover:text-indigo-200 {{ request()->routeIs('orders.index') ? 'underline' : '' }}">
+            <a href="{{ route('web.orders') }}"
+               class="text-sm hover:text-indigo-200 {{ request()->routeIs('web.orders') ? 'underline' : '' }}">
                 Orders
             </a>
         </div>
