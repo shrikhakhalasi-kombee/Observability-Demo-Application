@@ -5,7 +5,6 @@ namespace App\Providers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
-use OpenTelemetry\API\Common\Time\Clock;
 use OpenTelemetry\API\Trace\NoopTracer;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
@@ -14,7 +13,7 @@ use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
 use OpenTelemetry\SDK\Trace\Sampler\TraceIdRatioBasedSampler;
-use OpenTelemetry\SDK\Trace\SpanProcessor\BatchSpanProcessor;
+use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 use OpenTelemetry\SemConv\ResourceAttributes;
 use Prometheus\CollectorRegistry;
@@ -127,12 +126,12 @@ class ObservabilityServiceProvider extends ServiceProvider
         }
 
         try {
-            $endpoint = config('observability.otel.endpoint', 'http://tempo:4317');
-            // Use HTTP/protobuf transport — switch to port 4318 (OTLP HTTP)
-            $httpEndpoint = preg_replace('/:4317$/', ':4318', $endpoint);
+            $endpoint = rtrim(config('observability.otel.endpoint', 'http://tempo:4318'), '/');
+            // Ensure we're on the HTTP port (4318), not gRPC (4317)
+            $endpoint = preg_replace('/:4317$/', ':4318', $endpoint);
 
             $transport = (new OtlpHttpTransportFactory)->create(
-                $httpEndpoint.'/v1/traces',
+                $endpoint.'/v1/traces',
                 'application/x-protobuf'
             );
 
@@ -146,13 +145,18 @@ class ObservabilityServiceProvider extends ServiceProvider
                 Attributes::create([ResourceAttributes::SERVICE_NAME => $serviceName])
             );
 
-            $processor = new BatchSpanProcessor($exporter, Clock::getDefault());
+            // SimpleSpanProcessor exports synchronously — required for PHP-FPM
+            // where BatchSpanProcessor never gets a chance to flush before the
+            // worker is recycled.
+            $processor = new SimpleSpanProcessor($exporter);
 
             $tracerProvider = new TracerProvider(
                 spanProcessors: [$processor],
                 sampler: $sampler,
                 resource: $resource,
             );
+
+            Log::info('OTel tracer built successfully', ['endpoint' => $endpoint.'/v1/traces']);
 
             return $tracerProvider->getTracer($serviceName);
         } catch (\Throwable $e) {

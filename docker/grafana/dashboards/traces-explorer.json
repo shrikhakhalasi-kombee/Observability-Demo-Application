@@ -1,59 +1,45 @@
 {
-  "annotations": { "list": [{ "builtIn": 1, "datasource": { "type": "grafana", "uid": "-- Grafana --" }, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" }] },
-  "description": "Tempo-backed trace explorer with clickable trace IDs linked from Loki logs for the Laravel Observability Demo",
+  "annotations": { "list": [] },
+  "description": "Tempo trace explorer for the Laravel Observability Demo",
   "editable": true,
-  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
   "panels": [
     {
       "datasource": { "type": "tempo", "uid": "tempo" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 },
+      "gridPos": { "h": 18, "w": 24, "x": 0, "y": 0 },
       "id": 1,
-      "options": { "dedupStrategy": "none" },
-      "targets": [{
-        "datasource": { "type": "tempo", "uid": "tempo" },
-        "filters": [{ "id": "service-name", "operator": "=", "scope": "resource", "tag": "service.name", "value": ["laravel-observability-demo"], "valueType": "string" }],
-        "limit": 20,
-        "queryType": "traceql",
-        "refId": "A",
-        "tableType": "traces"
-      }],
-      "title": "Trace Search",
-      "type": "traces"
-    },
-    {
-      "datasource": { "type": "tempo", "uid": "tempo" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 16 },
-      "id": 2,
-      "options": { "dedupStrategy": "none" },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "traceDuration" }, "properties": [{ "id": "unit", "value": "ms" }, { "id": "displayName", "value": "Duration (ms)" }] },
+          { "matcher": { "id": "byName", "options": "traceID" }, "properties": [{ "id": "displayName", "value": "Trace ID" }] },
+          { "matcher": { "id": "byName", "options": "startTime" }, "properties": [{ "id": "displayName", "value": "Start Time" }] },
+          { "matcher": { "id": "byName", "options": "traceService" }, "properties": [{ "id": "displayName", "value": "Service" }] },
+          { "matcher": { "id": "byName", "options": "traceName" }, "properties": [{ "id": "displayName", "value": "Name" }] }
+        ]
+      },
+      "options": { "footer": { "show": false }, "sortBy": [{ "desc": true, "displayName": "Start Time" }] },
       "targets": [{
         "datasource": { "type": "tempo", "uid": "tempo" },
         "queryType": "traceql",
         "refId": "A",
         "query": "{resource.service.name=\"laravel-observability-demo\"}",
-        "tableType": "traces"
+        "tableType": "traces",
+        "limit": 20
       }],
-      "title": "Request Waterfall — Trace Detail",
-      "type": "traces"
+      "title": "Recent Traces",
+      "type": "table"
     },
     {
       "datasource": { "type": "tempo", "uid": "tempo" },
-      "description": "Distribution of span durations across all spans for the Laravel service.",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 18 },
+      "id": 2,
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "fillOpacity": 80, "lineWidth": 1 },
-          "unit": "ms"
-        },
+        "defaults": { "unit": "ms", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 80, "lineWidth": 1 } },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 28 },
-      "id": 3,
-      "options": { "bucketSize": "auto", "combine": false, "fillOpacity": 80, "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "options": { "bucketSize": "auto", "fillOpacity": 80, "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
       "targets": [{
         "datasource": { "type": "tempo", "uid": "tempo" },
         "queryType": "traceql",
@@ -66,40 +52,37 @@
     },
     {
       "datasource": { "type": "tempo", "uid": "tempo" },
-      "description": "Top 10 slowest spans by duration.",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 18 },
+      "id": 3,
       "fieldConfig": {
         "defaults": {
+          "unit": "ns",
           "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 500 }] },
-          "unit": "ms",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 100000000 }, { "color": "red", "value": 500000000 }] },
           "custom": { "displayMode": "color-background" }
         },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 28 },
-      "id": 4,
-      "options": { "sortBy": [{ "desc": true, "displayName": "Duration" }], "footer": { "show": false } },
+      "options": { "footer": { "show": false } },
       "targets": [{
         "datasource": { "type": "tempo", "uid": "tempo" },
         "queryType": "traceql",
         "refId": "A",
-        "query": "{resource.service.name=\"laravel-observability-demo\"} | select(duration, name, resource.service.name) | sort(duration desc) | limit(10)",
-        "tableType": "spans"
+        "query": "{resource.service.name=\"laravel-observability-demo\"} | select(duration, name, resource.service.name)",
+        "tableType": "spans",
+        "limit": 20
       }],
-      "title": "Slowest Service Spans (Top 10)",
+      "title": "Slowest Spans (Top 20)",
       "type": "table"
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 36,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": ["laravel", "observability", "traces"],
-  "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "Traces Explorer",
   "uid": "laravel-traces-explorer",
-  "version": 1,
-  "weekStart": ""
+  "version": 3
 }

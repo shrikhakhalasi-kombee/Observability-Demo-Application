@@ -13,6 +13,7 @@
         "promphp/prometheus_client_php": "^2.10",
         "open-telemetry/sdk": "^1.0",
         "open-telemetry/exporter-otlp": "^1.0",
+        "guzzlehttp/guzzle": "^7.0",
         "ext-protobuf": "*"
     },
     "require-dev": {

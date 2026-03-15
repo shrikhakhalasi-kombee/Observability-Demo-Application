@@ -1,101 +1,68 @@
 {
-  "annotations": { "list": [{ "builtIn": 1, "datasource": { "type": "grafana", "uid": "-- Grafana --" }, "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard" }] },
-  "description": "Loki-backed log explorer with level and trace_id filtering for the Laravel Observability Demo",
+  "annotations": { "list": [] },
+  "description": "Loki log explorer for the Laravel Observability Demo",
   "editable": true,
-  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
   "panels": [
     {
       "datasource": { "type": "loki", "uid": "loki" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
       "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 },
       "id": 1,
-      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
-      "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{app=\\"laravel-observability-demo\\"} | json | level =~ \"$level\"", "legendFormat": "", "queryType": "range", "refId": "A" }],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{
+        "datasource": { "type": "loki", "uid": "loki" },
+        "editorMode": "code",
+        "expr": "{app=\"laravel-observability-demo\"}",
+        "queryType": "range",
+        "refId": "A"
+      }],
       "title": "Log Stream",
       "type": "logs"
     },
     {
       "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "axisLabel": "logs/s", "fillOpacity": 80, "lineWidth": 1 },
-          "unit": "short"
-        },
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 80, "lineWidth": 1 }, "unit": "short" },
         "overrides": []
       },
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "id": 2,
-      "options": { "barRadius": 0, "barWidth": 0.97, "groupWidth": 0.7, "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "auto", "showValue": "auto", "stacking": "none", "tooltip": { "mode": "multi", "sort": "none" } },
-      "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "sum by (level) (rate({app=\\"laravel-observability-demo\\"} | json [1m]))", "legendFormat": "{{level}}", "queryType": "range", "refId": "A" }],
+      "options": { "barWidth": 0.97, "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+      "targets": [{
+        "datasource": { "type": "loki", "uid": "loki" },
+        "editorMode": "code",
+        "expr": "sum by (level) (rate({app=\"laravel-observability-demo\"} | json [1m]))",
+        "legendFormat": "{{level}}",
+        "queryType": "range",
+        "refId": "A"
+      }],
       "title": "Log Volume by Level",
       "type": "barchart"
     },
     {
       "datasource": { "type": "loki", "uid": "loki" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
       "id": 3,
-      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
-      "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{app=\\"laravel-observability-demo\\"} | json | level = \"ERROR\"", "queryType": "range", "refId": "A" }],
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{
+        "datasource": { "type": "loki", "uid": "loki" },
+        "editorMode": "code",
+        "expr": "{app=\"laravel-observability-demo\"} | json | level = `ERROR`",
+        "queryType": "range",
+        "refId": "A"
+      }],
       "title": "Error Logs",
-      "type": "logs"
-    },
-    {
-      "datasource": { "type": "loki", "uid": "loki" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 34 },
-      "id": 4,
-      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
-      "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{app=\\"laravel-observability-demo\\"} | json | status_code = `401`", "queryType": "range", "refId": "A" }],
-      "title": "Login Failures",
-      "type": "logs"
-    },
-    {
-      "datasource": { "type": "loki", "uid": "loki" },
-      "fieldConfig": { "defaults": {}, "overrides": [] },
-      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 34 },
-      "id": 5,
-      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
-      "targets": [{ "datasource": { "type": "loki", "uid": "loki" }, "editorMode": "code", "expr": "{app=\\"laravel-observability-demo\\"} | json | status_code = `422`", "queryType": "range", "refId": "A" }],
-      "title": "Validation Errors",
       "type": "logs"
     }
   ],
   "refresh": "10s",
-  "schemaVersion": 36,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": ["laravel", "observability", "logs"],
-  "templating": {
-    "list": [
-      {
-        "current": { "selected": true, "text": "ALL", "value": ".*" },
-        "hide": 0,
-        "includeAll": false,
-        "label": "Level",
-        "multi": false,
-        "name": "level",
-        "options": [
-          { "selected": true, "text": "ALL", "value": ".*" },
-          { "selected": false, "text": "INFO", "value": "INFO" },
-          { "selected": false, "text": "WARNING", "value": "WARNING" },
-          { "selected": false, "text": "ERROR", "value": "ERROR" }
-        ],
-        "query": ".*,INFO,WARNING,ERROR",
-        "queryValue": "",
-        "skipUrlSync": false,
-        "type": "custom"
-      }
-    ]
-  },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "Logs Explorer",
   "uid": "laravel-logs-explorer",
-  "version": 1,
-  "weekStart": ""
+  "version": 2
 }

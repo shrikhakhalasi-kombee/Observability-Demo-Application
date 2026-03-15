@@ -7,12 +7,13 @@ services:
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4318
     volumes:
       # Use named volume for speed, but sync specific directories for live updates
       - app_code:/var/www/html
       # Sync only the directories you actively edit
       - ./app:/var/www/html/app
+      - ./bootstrap:/var/www/html/bootstrap
       - ./resources:/var/www/html/resources
       - ./routes:/var/www/html/routes
       - ./config:/var/www/html/config

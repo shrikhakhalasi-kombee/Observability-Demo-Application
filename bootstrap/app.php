@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Middleware\AnomalyDelayMiddleware;
+use App\Http\Middleware\MetricsMiddleware;
+use App\Http\Middleware\RequestLogMiddleware;
+use App\Http\Middleware\TraceMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,17 +17,23 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'trace' => \App\Http\Middleware\TraceMiddleware::class,
-            'metrics' => \App\Http\Middleware\MetricsMiddleware::class,
-            'request.log' => \App\Http\Middleware\RequestLogMiddleware::class,
-            'anomaly.delay' => \App\Http\Middleware\AnomalyDelayMiddleware::class,
+            'trace' => TraceMiddleware::class,
+            'metrics' => MetricsMiddleware::class,
+            'request.log' => RequestLogMiddleware::class,
+            'anomaly.delay' => AnomalyDelayMiddleware::class,
         ]);
 
         $middleware->appendToGroup('api', [
-            \App\Http\Middleware\TraceMiddleware::class,
-            \App\Http\Middleware\AnomalyDelayMiddleware::class,
-            \App\Http\Middleware\RequestLogMiddleware::class,
-            \App\Http\Middleware\MetricsMiddleware::class,
+            TraceMiddleware::class,
+            AnomalyDelayMiddleware::class,
+            RequestLogMiddleware::class,
+            MetricsMiddleware::class,
+        ]);
+
+        $middleware->appendToGroup('web', [
+            TraceMiddleware::class,
+            RequestLogMiddleware::class,
+            MetricsMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

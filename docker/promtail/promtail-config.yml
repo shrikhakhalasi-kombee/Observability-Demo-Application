@@ -22,7 +22,5 @@ scrape_configs:
       - json:
           expressions:
             level: level
-            trace_id: trace_id
       - labels:
           level:
-          trace_id:
